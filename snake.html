@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>弱智贪吃蛇</title>
+    <style>
+        .container{
+            margin: 50px auto;
+        }
+        .row {
+            display: flex;
+            justify-content: center;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .game_over {
+            color: red;
+            font-size: 1rem;
+            display: none;
+        }
+        #bg{
+            display: block;
+            box-shadow: -2px -2px 2px #EFEFEF, 5px 5px 5px #B9B9B9;
+            cursor: pointer;
+        }
+        .restart{
+            display: none;
+        }
+        .col {
+            margin: 0.1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row game_over">
+            GAME OVER !
+        </div>
+        <div class="row">
+            <div class="col speed">
+                速度:
+                <select name="speed" id="">
+                    <option value="1">1x</option>
+                    <option value="2">2x</option>
+                    <option value="3">3x</option>
+                    <option value="4">4x</option>
+                    <option value="5">5x</option>
+                </select>
+            </div>
+            <div class="col start">
+                <button type="button" onclick="start();">开始</button>
+            </div>
+            <div class="col restart">
+                <button type="button" onclick="location.reload();">重新开始</button>
+            </div>
+            <div class="col">
+                分数:<span class="score">0</span>
+            </div>
+
+        </div>
+        <div class="row">
+            <canvas id="bg" width="450px" height="450px"></canvas>
+        </div>
+    </div>
+    
+    <script>
+        const leftCode = 37,rightCode=39,upCode=38,downCode=40;
+        window.onload = function() {
+            initParams();
+            // drawBackgroud();
+            window.onkeydown = turnAround;
+        }
+        //转向
+        function turnAround() {
+            if(Snake.gameover) {
+                return;
+            }
+            //不能掉头的情况
+            if(Snake.direction == leftCode && event.keyCode == rightCode 
+                || Snake.direction == rightCode && event.keyCode == leftCode 
+                || Snake.direction == upCode && event.keyCode == downCode 
+                || Snake.direction == downCode && event.keyCode == upCode
+                ) {
+                return;
+            }
+            Snake.direction = event.keyCode;
+            run();
+        }
+        //初始化数据
+        function initParams() {
+            let tag = document.getElementById("bg");
+            let context = tag.getContext("2d");
+            let lineSize = localStorage.getItem("lineSize") ? localStorage.getItem("lineSize") : 45;
+            context.strokeStyle = '#bfbfbf';
+            //游戏背景的宽度
+            let width = tag.clientWidth > tag.clientHeight ? tag.clientHeight : tag.clientWidth;
+            //格子间距
+            let lineGap = Math.floor(width / lineSize);
+            //起始x坐标
+            let startX = (tag.clientWidth - lineGap * lineSize) / 2 + lineGap / 2;
+            //起始y坐标
+            let startY = (tag.clientHeight - lineGap * lineSize) / 2 + lineGap / 2;
+            window.Snake = {tag,context,lineSize,width,lineGap,startX,startY,rewardPoint:{x:null,y:null},points:[], direction : rightCode, runCode : null,gameover:false};
+        }
+
+        //设置数据
+        function setParams(param) {
+            if(typeof param !== "object") {
+                throw "param must object";
+            }
+            for (const key in param) {
+                if (Object.hasOwnProperty.call(param, key) 
+                    && Object.hasOwnProperty.call(window.Snake, key)) {
+                    window.Snake[key] = param[key];
+                }
+            }
+        }
+        //画背景格子
+        function drawBackgroud() {
+            let snake = window.Snake;
+            for (var i = 0; i < snake.lineSize; i++) {
+                drawLine(snake.startX + i * snake.lineGap, snake.startY, 
+                    snake.startX + i * snake.lineGap, snake.tag.clientHeight - snake.startY
+                );
+                drawLine(snake.startX, snake.startY + i * snake.lineGap,
+                    snake.tag.clientWidth - snake.startX, snake.startY + i * snake.lineGap
+                );
+            }
+        }
+        //画某个点
+        function drawPoint(x,y,isReward) {
+            let snake = window.Snake;
+            snake.context.fillStyle = isReward ? "#FF0000" : "#000";
+            snake.context.fillRect(snake.startX + x * snake.lineGap + snake.context.lineWidth, snake.startY + y * snake.lineGap + snake.context.lineWidth, snake.lineGap - snake.context.lineWidth * 2, snake.lineGap - snake.context.lineWidth * 2);
+        }
+
+        function clearPoint(x,y) {
+            if(x == null || y == null) {
+                return;
+            }
+            let snake = window.Snake;
+            let point = {x: snake.startX + x * snake.lineGap + snake.context.lineWidth, y : snake.startY + y * snake.lineGap + snake.context.lineWidth};
+            snake.context.clearRect(point.x, point.y, snake.lineGap - snake.context.lineWidth * 2, snake.lineGap - snake.context.lineWidth * 2);
+        }
+
+        function randomReward() {
+            
+            clearPoint(Snake.rewardPoint.x, Snake.rewardPoint.y);
+            let points = [];
+            for(let i = 0; i < Snake.lineSize - 1; ++i) {
+                for (let j = 0; j < Snake.lineSize - 1; ++j) {
+                    let exists = false;
+                    for (const p of Snake.points) {
+                        if(i == p.x && j == p.y) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if(!exists) {
+                        points.push({x:i,y:j});
+                    }
+                }
+            }
+            let snake = window.Snake;
+            function random () {
+                return points[Math.floor(Math.random() * points.length)];
+            }
+            let point = random();
+            setParams({ rewardPoint: point});
+            drawPoint(point.x, point.y, true);
+        }
+
+        function run() {
+            let headX = Snake.points[0].x, headY = Snake.points[0].y;
+            if(Snake.direction == rightCode) {
+                //水平向右
+                headX++;
+            }else if (Snake.direction == leftCode) {
+                //水平向左
+                headX--;
+            }else if (Snake.direction == upCode) {
+                //垂直向上
+                headY--;
+            }else if (Snake.direction == downCode) {
+                //垂直向下
+                headY++;
+            }else {
+                return;
+            }
+            if(headX < 0 || headX >= Snake.lineSize - 1 || headY < 0 || headY >= Snake.lineSize - 1) {
+                gameover();
+                return;
+            }
+            for (const p of Snake.points) {
+                if (p.x == headX && p.y == headY) {
+                    gameover();
+                    return;
+                }
+            }
+            if(headX != Snake.rewardPoint.x || headY != Snake.rewardPoint.y) {
+                let lastPoint = Snake.points.pop();
+                clearPoint(lastPoint.x, lastPoint.y);
+            }else {
+                randomReward();
+            }
+            drawPoint(headX, headY);
+            Snake.points.unshift({ x: headX, y: headY });
+            document.querySelector(".score").innerText = Snake.points.length;
+        }
+        function gameover() {
+            Snake.gameover = true;
+            if(Snake.runCode) {
+                window.clearInterval(Snake.runCode);
+            }
+            document.querySelector(".game_over").style.display = "flex";
+        }
+
+        function initHead() {
+            let head = {x:0,y:0};
+            
+            drawPoint(head.x, head.y, false);
+            Snake.points.push(head);
+        }
+        function restart() {
+            document.querySelector(".start").style.display = "flex";
+            document.querySelector(".restart").style.display = "none";
+            document.querySelector(".speed").style.display = "flex";
+        }
+        function start() {
+            document.querySelector(".start").style.display = "none";
+            document.querySelector(".restart").style.display = "flex";
+            document.querySelector(".speed").style.display = "none";
+            //画蛇头
+            initHead();
+            //初始化一个奖励
+            randomReward();
+            let code = window.setInterval(run, 500 / document.querySelector(".speed>select").value);
+            setParams({runCode:code});
+
+        }
+
+        function drawLine(x1,y1,x2,y2) {
+            Snake.context.moveTo(x1, y1);
+            Snake.context.lineTo(x2, y2);
+            Snake.context.stroke();
+        }
+    </script>
+</body>
+</html>
