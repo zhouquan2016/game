@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>俄罗斯方块</title>
+    <style>
+        .container {
+            margin: 50px auto;
+        }
+
+        .row {
+            display: flex;
+            justify-content: center;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .game_over {
+            color: "red";
+            font-size: 1rem;
+            display: none;
+        }
+
+        #bg {
+            display: block;
+            box-shadow: -2px -2px 2px #EFEFEF, 5px 5px 5px #B9B9B9;
+            cursor: pointer;
+        }
+
+        .restart {
+            display: none;
+        }
+
+        .col {
+            margin: 0.1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="row game_over">
+            GAME OVER !
+        </div>
+        <div class="row">
+            <div class="col speed">
+                速度:
+                <select name="speed" id="">
+                    <option value="1">1x</option>
+                    <option value="2">2x</option>
+                    <option value="3">3x</option>
+                    <option value="4">4x</option>
+                    <option value="5">5x</option>
+                </select>
+            </div>
+            <div class="col start">
+                <button type="button" onclick="start();">开始</button>
+            </div>
+            <div class="col restart">
+                <button type="button" onclick="location.reload();">重新开始</button>
+            </div>
+            <div class="col">
+                分数:<span class="score">0</span>
+            </div>
+
+        </div>
+        <div class="row">
+            <canvas id="bg" width="450px" height="750px"></canvas>
+        </div>
+    </div>
+    <script>
+        const leftCode = 37, rightCode = 39, upCode = 38, downCode = 40;
+        const shapeColors = ["#ff0000", "#00ff73", "#0011ff", "#00c3ff57"];
+        const shapeHandles = {};
+        shapeHandles[downCode] = function (shape) {
+            return shape.map(p => [p[0], p[1] + 1]);
+        };
+        shapeHandles[leftCode] = function (shape) {
+            return shape.map(p => [p[0] - 1, p[1]]);
+        };
+        shapeHandles[rightCode] = function (shape) {
+            return shape.map(p => [p[0] + 1, p[1]]);
+        };
+        shapeHandles[upCode] = function (shape) {
+            let o = shape[1];
+            let newShape = [];
+            for (let i = 0; i < shape.length; ++i) {
+                var tempX = o[1] + o[0] - shape[i][1];
+                var tempY = o[1] - o[0] + shape[i][0];
+                newShape.push([tempX, tempY]);
+            }
+            return newShape;
+        };
+        //初始化数据
+        function initParams() {
+            let tag = document.getElementById("bg");
+            let context = tag.getContext("2d");
+            let lineSize = 11;
+
+            context.strokeStyle = '#bfbfbf';
+            //游戏背景的宽度
+            let width = tag.clientWidth;
+            //格子间距
+            let lineGap = ~~(width / lineSize);
+            let heightSize = ~~(tag.clientHeight / lineGap) + 1;
+            //起始x坐标
+            let startX = (tag.clientWidth - lineGap * lineSize) / 2 + lineGap / 2;
+            //起始y坐标
+            let startY = (tag.clientHeight - lineGap * heightSize) / 2 + lineGap / 2;
+            let md = ~~(lineSize / 2);
+            let shapes = [
+                // +
+                // +++
+                [
+                    [md, -1],
+                    [md + 1, 0],
+                    [md, 0],
+                    [md + 2, 0]
+                ],
+                //   +
+                // +++
+                [
+                    [md - 1, 0],
+                    [md, 0],
+                    [md + 1, 0],
+                    [md + 1, -1]
+                ],
+                // ++
+                //  ++
+                [
+                    [md - 1, -1],
+                    [md, -1],
+                    [md, 0],
+                    [md + 1, 0],
+                ],
+                //   ++
+                //  ++
+                [
+                    [md - 1, -1],
+                    [md, -1],
+                    [md, 0],
+                    [md + 1, 0],
+                ],
+                // ++++
+                [
+                    [md - 1, -1],
+                    [md, -1],
+                    [md + 1, -1],
+                    [md + 2, -1],
+                ],
+                // +++
+                //  +
+                [
+                    [md - 1, -1],
+                    [md, -1],
+                    [md + 1, -1],
+                    [md, 0],
+
+                ],
+                // ++
+                // ++
+                [
+                    [md, -1],
+                    [md + 1, -1],
+                    [md, 0],
+                    [md + 1, 0],
+                ]
+            ];
+            let block = [];
+            for (let i = 0; i < lineSize - 1; ++i) {
+                let arr = [];
+                for (let j = 0; j < heightSize - 1; ++j) {
+                    arr[j] = null;
+                }
+                block[i] = arr;
+            }
+            window.Section = { tag, context, lineSize, width, lineGap, startX, startY, heightSize, runCode: null, gameover: false, shapes, shape: shapes[1], block, score: 0 };
+        }
+
+        function drawLine(x1, y1, x2, y2) {
+            Section.context.moveTo(x1, y1);
+            Section.context.lineTo(x2, y2);
+            Section.context.stroke();
+        }
+        //画背景格子
+        function drawBackgroud() {
+            for (let i = 0; i < Section.lineSize; ++i) {
+                drawLine(Section.startX + i * Section.lineGap, Section.startY,
+                    Section.startX + i * Section.lineGap, Section.tag.clientHeight - Section.startY
+                );
+            }
+            for (let i = 0; i < Section.heightSize; ++i) {
+                drawLine(Section.startX, Section.lineGap * i + Section.startY,
+                    Section.tag.clientWidth - Section.startX, Section.lineGap * i + Section.startY
+                );
+            }
+        }
+        //画某个点
+        function drawPoint(x, y, color) {
+            if (x < 0 || y < 0) return;
+            Section.context.fillStyle = color;
+            Section.context.fillRect(Section.startX + x * Section.lineGap + Section.context.lineWidth, Section.startY + y * Section.lineGap + Section.context.lineWidth, Section.lineGap - Section.context.lineWidth * 2, Section.lineGap - Section.context.lineWidth * 2);
+        }
+        function clearPoint(x, y) {
+            if (x == null || y == null) {
+                return;
+            }
+            let point = { x: Section.startX + x * Section.lineGap + Section.context.lineWidth, y: Section.startY + y * Section.lineGap + Section.context.lineWidth };
+            Section.context.clearRect(point.x, point.y, Section.lineGap - Section.context.lineWidth * 2, Section.lineGap - Section.context.lineWidth * 2);
+        }
+        function drawShape(shape) {
+            for (const s of shape) {
+                drawPoint(s[0], s[1], Section.shape.color);
+            }
+        }
+        function clearShape(shape) {
+            for (const s of shape) {
+                clearPoint(s[0], s[1]);
+            }
+        }
+
+        // -1越界 -2 到达底部 -3 到达顶部 -4 到达block 1 可以移到
+        function crash(shape) {
+            for (let i = 0; i < shape.length; ++i) {
+                let p = shape[i];
+                if (p[0] < 0 || p[0] > Section.lineSize - 2 || p[1] < 0) {
+                    return -1;
+                }
+                if (p[1] > Section.heightSize - 2) {
+                    return - 2;
+                } else if (Section.block[p[0]][p[1]]) {
+                    for (let pp of shape) {
+                        if (pp[1] <= 0) {
+                            return -3;
+                        }
+                    }
+                    return -4;
+                }
+            }
+            return 1;
+        }
+
+        function move(keyCode) {
+            let shapeHandle = shapeHandles[keyCode];
+            if (!shapeHandle) return;
+            if (!Section.shape) {
+                randomShape();
+            }
+            let newShape = shapeHandle(Section.shape);
+            let code = crash(newShape);
+            if (code == 1) {
+                clearShape(Section.shape);
+                drawShape(newShape);
+                Section.shape = newShape;
+            } else if ((code == -2 || code == -4) && keyCode == downCode) {
+                addBlock();
+            } else if (code == -3) {
+                drawShape(newShape);
+                gameover();
+            }
+
+        }
+
+        function addBlock() {
+            let shape = Section.shape;
+            Section.shape = null;
+            let yObj = {};
+            for (let p of shape) {
+                Section.block[p[0]][p[1]] = true;
+                yObj[p[1]] = false;
+                drawPoint(p[0], p[1], "gray");
+            }
+            let yArr = [];
+            for (let y in yObj) {
+                let all = true;
+                for (let x = 0; x < Section.block.length; ++x) {
+                    if (!Section.block[x][y]) {
+                        all = false;
+                        break;
+                    }
+                }
+                yObj[y] = all;
+                if (all) {
+                    yArr.push(~~y);
+                }
+            }
+            if (yArr.length == 0) {
+                return;
+            }
+            Section.score += yArr.length;
+            document.querySelector(".score").innerText = Section.score;
+            yArr.sort();
+            for (let y of yArr) {
+                for (let x = 0; x < Section.block.length; ++x) {
+                    for (let yy = y; yy > 0; yy--) {
+                        Section.block[x][yy] = Section.block[x][yy - 1];
+                        if (Section.block[x][yy]) {
+                            drawPoint(x, yy, "gray");
+                        } else {
+                            clearPoint(x, yy);
+                        }
+                    }
+                }
+            }
+
+        }
+        function randomShape() {
+            Section.shape = Section.shapes[~~(Math.random() * Section.shapes.length)];
+            Section.shape.color = shapeColors[~~(Math.random() * shapeColors.length)];
+        }
+
+        window.onload = function () {
+            initParams();
+            drawBackgroud();
+        }
+
+        function start() {
+            document.querySelector(".start").style.display = "none";
+            document.querySelector(".restart").style.display = "flex";
+            document.querySelector(".speed").style.display = "none";
+            Section.runCode = window.setInterval(() => {
+                move(downCode);
+            }, 800 / document.querySelector(".speed>select").value);
+            window.onkeydown = function (event) {
+                move(event.keyCode);
+            }
+        }
+        function gameover() {
+            window.onkeydown = null;
+            if (Section.runCode) {
+                window.clearInterval(Section.runCode);
+            }
+            document.querySelector(".game_over").style.display = "flex";
+        }
+    </script>
+</body>
+
+</html>
