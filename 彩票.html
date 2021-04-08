@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>彩票生成器</title>
+    <style>
+        .container {
+            width: 80%;
+            margin: 5rem auto;
+        }
+
+        .row {
+            display: block;
+            justify-content: center;
+            flex-grow: 1;
+        }
+
+        .btn {
+            border-radius: 10%;
+        }
+
+        .ball-list {
+            list-style-type: none;
+            display: flex;
+        }
+
+        .ball-list>li {
+            width: 2rem;
+            height: 2rem;
+            line-height: 2rem;
+            border-radius: 50%;
+            border: 1px solid gray;
+            text-align: center;
+            margin-left: 0.2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="row">
+            <button onclick="twoColorBall()" class="btn">生成双色球</button><button onclick="copyBall()">复制</button>
+            <ul class="ball-list qianqu">
+            </ul>
+            <ul class="ball-list houqu">
+            </ul>
+        </div>
+        <div class="row">
+            <button onclick="superLotto()">生成大乐透</button><button onclick="copyBall()">复制</button>
+            <ul class="ball-list qianqu">
+            </ul>
+            <ul class="ball-list houqu">
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function swap(arr, i, j) {
+            let tmp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = tmp;
+        }
+        function randomBall(start, end, len) {
+            let arr = [];
+            for (let i = start; i <= end; ++i) {
+                arr.push(i);
+            }
+            for (let i = 0; i < len; ++i) {
+                let ii = ~~(Math.random() * (arr.length - i));
+                swap(arr, ii, arr.length - 1 - i);
+            }
+            return arr.slice(arr.length - len).sort((a, b) => a - b);
+        }
+        function toHtml(arr) {
+            return arr.map(num => `<li>${num}</li>`).reduce((a, b) => a + b);
+        }
+        function copy(text) {
+            let transfer = document.createElement('input');
+            document.body.appendChild(transfer);
+            transfer.value = text;  // 这里表示想要复制的内容
+            transfer.focus();
+            transfer.select();
+            if (document.execCommand) {
+                document.execCommand('Copy');
+            }
+            transfer.blur();
+            console.log('copy:' + text);
+            document.body.removeChild(transfer);
+
+        }
+        function twoColorBall() {
+            let arr1 = randomBall(1, 33, 6);
+            let arr2 = randomBall(1, 16, 1);
+            event.target.parentElement.querySelector(".qianqu").innerHTML = toHtml(arr1);
+            event.target.parentElement.querySelector(".houqu").innerHTML = toHtml(arr2);
+        }
+
+        function superLotto() {
+            let arr1 = randomBall(1, 35, 5);
+            let arr2 = randomBall(1, 12, 2);
+            event.target.parentElement.querySelector(".qianqu").innerHTML = toHtml(arr1);
+            event.target.parentElement.querySelector(".houqu").innerHTML = toHtml(arr2);
+        }
+
+        function ballText(tags) {
+            return [].slice.apply(tags).map(tag =>
+                " " + (tag.innerText > 9 ? tag.innerText : "0" + tag.innerText)
+                , tags).reduce((a, b) => a + b);
+        }
+        function copyBall() {
+            let qian = ballText(event.target.parentElement.querySelectorAll(".qianqu>li"));
+            let hou = ballText(event.target.parentElement.querySelectorAll(".houqu>li"));
+            copy(qian + "\t" + hou);
+        }
+    </script>
+</body>
+
+</html>

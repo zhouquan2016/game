@@ -292,7 +292,7 @@
             }
             Section.score += yArr.length;
             document.querySelector(".score").innerText = Section.score;
-            yArr.sort();
+            yArr.sort((a,b) => a - b);
             for (let y of yArr) {
                 for (let x = 0; x < Section.block.length; ++x) {
                     for (let yy = y; yy > 0; yy--) {
